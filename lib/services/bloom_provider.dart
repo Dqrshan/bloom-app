@@ -38,6 +38,7 @@ class BloomProvider extends ChangeNotifier {
   StreamSubscription? _syncDataSub;
   StreamSubscription? _syncPartnerSub;
   StreamSubscription? _syncApprovalSub;
+  StreamSubscription? _syncApprovedSub;
   bool _isDisposed = false;
 
   BloomProvider() {
@@ -46,8 +47,9 @@ class BloomProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
-    _syncDataSub = _sync.dataReceivedStream.listen((_) async {
+    _syncDataSub = _sync.dataReceivedStream.listen((data) async {
       if (!_isDisposed) {
+        await _db.mergeIncomingData(data);
         await loadData();
       }
     });
@@ -61,6 +63,12 @@ class BloomProvider extends ChangeNotifier {
         notifyListeners();
       }
     });
+    _syncApprovedSub = _sync.syncApprovedStream.listen((_) async {
+      if (!_isDisposed) {
+        final payload = await _db.exportAll();
+        _sync.sendEncryptedSyncData(payload);
+      }
+    });
   }
 
   @override
@@ -70,6 +78,7 @@ class BloomProvider extends ChangeNotifier {
     _syncDataSub?.cancel();
     _syncPartnerSub?.cancel();
     _syncApprovalSub?.cancel();
+    _syncApprovedSub?.cancel();
     super.dispose();
   }
 

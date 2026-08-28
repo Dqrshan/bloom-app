@@ -26,11 +26,13 @@ class SyncService {
   final _partnerController = StreamController<String?>.broadcast();
   final _approvalController = StreamController<Map<String, dynamic>>.broadcast();
   final _dataReceivedController = StreamController<Map<String, dynamic>>.broadcast();
+  final _syncApprovedController = StreamController<void>.broadcast();
 
   Stream<SyncState> get stateStream => _stateController.stream;
   Stream<String?> get partnerStream => _partnerController.stream;
   Stream<Map<String, dynamic>> get approvalStream => _approvalController.stream;
   Stream<Map<String, dynamic>> get dataReceivedStream => _dataReceivedController.stream;
+  Stream<void> get syncApprovedStream => _syncApprovedController.stream;
 
   SyncState _currentState = SyncState.disconnected;
   SyncState get currentState => _currentState;
@@ -219,6 +221,9 @@ class SyncService {
     });
     _pendingRequestId = null;
     _updateState(SyncState.syncing);
+    if (!_syncApprovedController.isClosed) {
+      _syncApprovedController.add(null);
+    }
   }
 
   void denySync(String requestId) {
@@ -323,6 +328,9 @@ class SyncService {
 
         case 'sync_approved':
           _updateState(SyncState.syncing);
+          if (!_syncApprovedController.isClosed) {
+            _syncApprovedController.add(null);
+          }
           break;
 
         case 'sync_denied':
