@@ -336,7 +336,7 @@ class BloomProvider extends ChangeNotifier {
   Future<ChatConversation> createConversation({String? initialTitle}) async {
     final now = DateTime.now();
     final newConv = ChatConversation(
-      id: 'conv_${now.millisecondsSinceEpoch}',
+      id: 'conv_${now.microsecondsSinceEpoch}',
       title: initialTitle ?? 'New Conversation',
       createdAt: now,
       updatedAt: now,

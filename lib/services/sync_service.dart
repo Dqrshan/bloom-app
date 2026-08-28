@@ -236,9 +236,14 @@ class SyncService {
     _updateState(SyncState.connected);
   }
 
+  String _deriveSharedSecret(String devA, String devB) {
+    final sorted = [devA, devB]..sort();
+    return 'bloom_e2ee_secret_${sorted[0]}_${sorted[1]}';
+  }
+
   void sendEncryptedSyncData(Map<String, dynamic> rawPayload) {
-    if (_partnerId == null) return;
-    final secret = _sharedSecret ?? 'bloom_default_secret_key_$pairingCode';
+    if (_partnerId == null || _deviceId == null) return;
+    final secret = _deriveSharedSecret(_deviceId!, _partnerId!);
     final jsonStr = jsonEncode(rawPayload);
     final encResult = CryptoUtil.encryptPayload(jsonStr, secret);
 
@@ -286,9 +291,9 @@ class SyncService {
         case 'pair_request':
           // Another device wants to pair with us using our pairing code
           final fromDevice = msg['fromDeviceId'] as String?;
-          if (fromDevice != null && fromDevice != _deviceId) {
+          if (fromDevice != null && fromDevice != _deviceId && _deviceId != null) {
             _partnerId = fromDevice;
-            _sharedSecret = 'bloom_secret_${_pairingCode}_$fromDevice';
+            _sharedSecret = _deriveSharedSecret(_deviceId!, fromDevice);
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('bloom_partner_id', _partnerId!);
             await prefs.setString('bloom_shared_secret', _sharedSecret!);
@@ -307,9 +312,9 @@ class SyncService {
         case 'pair_accepted':
         case 'pair_request_sent':
           final pId = (msg['partnerDeviceId'] ?? msg['fromDeviceId']) as String?;
-          if (pId != null) {
+          if (pId != null && _deviceId != null) {
             _partnerId = pId;
-            _sharedSecret = 'bloom_secret_${_pairingCode}_$pId';
+            _sharedSecret = _deriveSharedSecret(_deviceId!, pId);
             final prefs = await SharedPreferences.getInstance();
             await prefs.setString('bloom_partner_id', _partnerId!);
             await prefs.setString('bloom_shared_secret', _sharedSecret!);
@@ -340,9 +345,10 @@ class SyncService {
         case 'sync_data':
           final rawCipher = msg['payload'];
           final iv = msg['iv'] as String?;
-          if (rawCipher != null) {
+          final fromDev = (msg['fromDeviceId'] as String?) ?? _partnerId;
+          if (rawCipher != null && _deviceId != null && fromDev != null) {
             Map<String, dynamic> decryptedPayload = {};
-            final secret = _sharedSecret ?? 'bloom_default_secret_key_$pairingCode';
+            final secret = _deriveSharedSecret(_deviceId!, fromDev);
 
             if (iv != null && rawCipher is String) {
               try {
