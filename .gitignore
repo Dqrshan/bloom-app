@@ -1,0 +1,37 @@
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+.pub-cache/
+.pub/
+build/
+
+# Android
+android/local.properties
+android/.gradle/
+android/app/build/
+android/app/release/
+*.iml
+.gradle/
+
+# Cloudflare / Node
+node_modules/
+server/node_modules/
+server/cloudflare/node_modules/
+.wrangler/
+server/cloudflare/.wrangler/
+
+# IDE & Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Environment & Secrets
+.env
+.env.*
+!.env.example
