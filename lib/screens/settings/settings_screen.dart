@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:file_picker/file_picker.dart';
@@ -203,18 +204,23 @@ class SettingsScreen extends StatelessWidget {
       final prov = context.read<BloomProvider>();
       final data = await prov.exportData();
       final json = const JsonEncoder.withIndent('  ').convert(data);
+      final bytes = Uint8List.fromList(utf8.encode(json));
 
       final path = await FilePicker.platform.saveFile(
         dialogTitle: 'Save Bloom Backup',
         fileName: 'bloom_backup_${DateTime.now().millisecondsSinceEpoch}.json',
         type: FileType.custom,
         allowedExtensions: ['json'],
+        bytes: bytes,
       );
 
       if (path != null) {
-        await File(path).writeAsString(json);
+        final file = File(path);
+        if (!await file.exists() || await file.length() == 0) {
+          await file.writeAsBytes(bytes);
+        }
         messenger.showSnackBar(
-          SnackBar(content: Text('Backup saved to ${path.split('/').last}')),
+          const SnackBar(content: Text('Backup saved successfully!')),
         );
       }
     } catch (e) {
@@ -232,19 +238,28 @@ class SettingsScreen extends StatelessWidget {
       final result = await FilePicker.platform.pickFiles(
         type: FileType.custom,
         allowedExtensions: ['json'],
+        withData: true,
       );
 
-      if (result == null || result.files.isEmpty || result.files.first.path == null) {
+      if (result == null || result.files.isEmpty) {
         return;
       }
 
-      final file = File(result.files.first.path!);
-      final json = jsonDecode(await file.readAsString()) as Map<String, dynamic>;
+      final pickedFile = result.files.first;
+      String jsonString;
+      if (pickedFile.bytes != null) {
+        jsonString = utf8.decode(pickedFile.bytes!);
+      } else if (pickedFile.path != null) {
+        jsonString = await File(pickedFile.path!).readAsString();
+      } else {
+        throw Exception('Could not read selected file');
+      }
 
+      final json = jsonDecode(jsonString) as Map<String, dynamic>;
       await prov.importData(json);
 
       messenger.showSnackBar(
-        const SnackBar(content: Text('Data imported successfully')),
+        const SnackBar(content: Text('Data imported successfully!')),
       );
     } catch (e) {
       messenger.showSnackBar(
