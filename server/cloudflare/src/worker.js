@@ -6,7 +6,8 @@
 export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
-    const isWebSocket = (request.headers.get('Upgrade') || request.headers.get('upgrade') || '').toLowerCase() === 'websocket';
+    const upgradeHeader = (request.headers.get('Upgrade') || request.headers.get('upgrade') || '').toLowerCase();
+    const isWebSocket = upgradeHeader === 'websocket';
 
     // Route WebSocket connections to the singleton Durable Object
     if (isWebSocket) {
@@ -36,15 +37,51 @@ export class BloomRelayDO {
     this.ctx = ctx;
     this.env = env;
 
-    // In-memory maps for active peers
+    // In-memory maps for fast lookups
     this.devices = new Map(); // deviceId -> WebSocket
     this.wsToDeviceId = new Map(); // WebSocket -> deviceId
     this.pairingCodes = new Map(); // pairingCode -> { deviceId, deviceName, createdAt }
     this.pendingRequests = new Map(); // requestId -> { from, to, dataTypes, timestamp }
   }
 
+  getSocket(deviceId) {
+    if (this.devices.has(deviceId)) {
+      const s = this.devices.get(deviceId);
+      try {
+        if (s.readyState === 1) return s;
+      } catch (_) {}
+    }
+    // Search across all accepted WebSockets using attachments
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        const att = ws.deserializeAttachment();
+        if (att && att.deviceId === deviceId) {
+          this.devices.set(deviceId, ws);
+          return ws;
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
+  getPairingCodeOwner(code) {
+    if (this.pairingCodes.has(code)) {
+      return this.pairingCodes.get(code);
+    }
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        const att = ws.deserializeAttachment();
+        if (att && att.pairingCode === code && att.deviceId) {
+          return { deviceId: att.deviceId, deviceName: att.deviceName || 'Bloom User' };
+        }
+      } catch (_) {}
+    }
+    return null;
+  }
+
   async fetch(request) {
-    if (request.headers.get('Upgrade') !== 'websocket') {
+    const upgradeHeader = (request.headers.get('Upgrade') || request.headers.get('upgrade') || '').toLowerCase();
+    if (upgradeHeader !== 'websocket') {
       return new Response('Expected WebSocket upgrade', { status: 426 });
     }
 
@@ -65,7 +102,9 @@ export class BloomRelayDO {
       const data = JSON.parse(message);
       this.handleMessage(ws, data);
     } catch (e) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON payload' }));
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'Invalid JSON payload' }));
+      } catch (_) {}
     }
   }
 
@@ -96,7 +135,9 @@ export class BloomRelayDO {
         this.handleSyncComplete(ws, message);
         break;
       case 'ping':
-        ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        try {
+          ws.send(JSON.stringify({ type: 'pong', timestamp: Date.now() }));
+        } catch (_) {}
         break;
       default:
         console.log(`[Bloom DO] Unknown message type: ${message.type}`);
@@ -105,21 +146,25 @@ export class BloomRelayDO {
 
   handleRegister(ws, message) {
     const { deviceId } = message;
-    if (!deviceId) {
-      ws.send(JSON.stringify({ type: 'error', message: 'deviceId required' }));
-      return;
-    }
+    if (!deviceId) return;
 
     this.devices.set(deviceId, ws);
     this.wsToDeviceId.set(ws, deviceId);
 
-    ws.send(
-      JSON.stringify({
-        type: 'registered',
-        deviceId: deviceId,
-        timestamp: Date.now(),
-      })
-    );
+    try {
+      const prev = ws.deserializeAttachment() || {};
+      ws.serializeAttachment({ ...prev, deviceId });
+    } catch (_) {}
+
+    try {
+      ws.send(
+        JSON.stringify({
+          type: 'registered',
+          deviceId: deviceId,
+          timestamp: Date.now(),
+        })
+      );
+    } catch (_) {}
 
     this.broadcastDeviceList();
   }
@@ -127,15 +172,25 @@ export class BloomRelayDO {
   handlePairRequest(ws, message) {
     const { pairingCode, deviceId, deviceName } = message;
     if (!pairingCode || !deviceId) {
-      ws.send(JSON.stringify({ type: 'error', message: 'pairingCode and deviceId required' }));
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'pairingCode and deviceId required' }));
+      } catch (_) {}
       return;
     }
 
     const code = pairingCode.toUpperCase();
-    const existing = this.pairingCodes.get(code);
+    this.devices.set(deviceId, ws);
+    this.wsToDeviceId.set(ws, deviceId);
 
-    if (existing && existing.deviceId !== deviceId) {
-      const partnerWs = this.devices.get(existing.deviceId);
+    try {
+      const prev = ws.deserializeAttachment() || {};
+      ws.serializeAttachment({ ...prev, deviceId, pairingCode: code, deviceName: deviceName || 'Bloom User' });
+    } catch (_) {}
+
+    const owner = this.getPairingCodeOwner(code);
+
+    if (owner && owner.deviceId !== deviceId) {
+      const partnerWs = this.getSocket(owner.deviceId);
       if (partnerWs) {
         try {
           partnerWs.send(
@@ -149,13 +204,15 @@ export class BloomRelayDO {
         } catch (_) {}
       }
 
-      ws.send(
-        JSON.stringify({
-          type: 'pair_request_sent',
-          partnerDeviceId: existing.deviceId,
-          timestamp: Date.now(),
-        })
-      );
+      try {
+        ws.send(
+          JSON.stringify({
+            type: 'pair_request_sent',
+            partnerDeviceId: owner.deviceId,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (_) {}
     } else {
       this.pairingCodes.set(code, {
         deviceId: deviceId,
@@ -163,20 +220,22 @@ export class BloomRelayDO {
         createdAt: Date.now(),
       });
 
-      ws.send(
-        JSON.stringify({
-          type: 'pair_code_registered',
-          code: code,
-          timestamp: Date.now(),
-        })
-      );
+      try {
+        ws.send(
+          JSON.stringify({
+            type: 'pair_code_registered',
+            code: code,
+            timestamp: Date.now(),
+          })
+        );
+      } catch (_) {}
     }
   }
 
   handlePairAccept(ws, message) {
     const { fromDeviceId, deviceId } = message;
 
-    const partnerWs = this.devices.get(fromDeviceId);
+    const partnerWs = this.getSocket(fromDeviceId);
     if (partnerWs) {
       try {
         partnerWs.send(
@@ -189,19 +248,23 @@ export class BloomRelayDO {
       } catch (_) {}
     }
 
-    ws.send(
-      JSON.stringify({
-        type: 'pair_accepted',
-        partnerDeviceId: fromDeviceId,
-        timestamp: Date.now(),
-      })
-    );
+    try {
+      ws.send(
+        JSON.stringify({
+          type: 'pair_accepted',
+          partnerDeviceId: fromDeviceId,
+          timestamp: Date.now(),
+        })
+      );
+    } catch (_) {}
   }
 
   handleSyncRequest(ws, message) {
     const { fromDeviceId, toDeviceId, requestId, dataTypes } = message;
     if (!fromDeviceId || !toDeviceId) {
-      ws.send(JSON.stringify({ type: 'error', message: 'fromDeviceId and toDeviceId required' }));
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'fromDeviceId and toDeviceId required' }));
+      } catch (_) {}
       return;
     }
 
@@ -213,7 +276,7 @@ export class BloomRelayDO {
       timestamp: Date.now(),
     });
 
-    const targetWs = this.devices.get(toDeviceId);
+    const targetWs = this.getSocket(toDeviceId);
     if (targetWs) {
       try {
         targetWs.send(
@@ -225,10 +288,14 @@ export class BloomRelayDO {
           })
         );
       } catch (_) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Failed to notify partner device' }));
+        try {
+          ws.send(JSON.stringify({ type: 'error', message: 'Failed to notify partner device' }));
+        } catch (_) {}
       }
     } else {
-      ws.send(JSON.stringify({ type: 'error', message: 'Partner device not connected' }));
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'Partner device not connected' }));
+      } catch (_) {}
     }
   }
 
@@ -237,25 +304,25 @@ export class BloomRelayDO {
     const request = this.pendingRequests.get(requestId);
 
     if (!request) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Request not found' }));
+      try {
+        ws.send(JSON.stringify({ type: 'error', message: 'Request not found' }));
+      } catch (_) {}
       return;
     }
 
-    const sourceWs = this.devices.get(request.from);
+    const sourceWs = this.getSocket(request.from);
     if (sourceWs) {
       try {
         sourceWs.send(
           JSON.stringify({
             type: 'sync_approved',
             requestId: requestId,
-            toDeviceId: deviceId,
+            fromDeviceId: deviceId,
             timestamp: Date.now(),
           })
         );
       } catch (_) {}
     }
-
-    this.pendingRequests.delete(requestId);
   }
 
   handleSyncDenied(ws, message) {
@@ -263,7 +330,7 @@ export class BloomRelayDO {
     const request = this.pendingRequests.get(requestId);
 
     if (request) {
-      const sourceWs = this.devices.get(request.from);
+      const sourceWs = this.getSocket(request.from);
       if (sourceWs) {
         try {
           sourceWs.send(
@@ -280,49 +347,38 @@ export class BloomRelayDO {
   }
 
   handleSyncData(ws, message) {
-    const { fromDeviceId, toDeviceId, payload, iv, timestamp } = message;
-    if (!fromDeviceId || !toDeviceId || !payload) {
-      ws.send(JSON.stringify({ type: 'error', message: 'Missing required sync payload' }));
-      return;
-    }
+    const { toDeviceId, payload, iv } = message;
+    const targetWs = this.getSocket(toDeviceId);
 
-    const targetWs = this.devices.get(toDeviceId);
     if (targetWs) {
       try {
         targetWs.send(
           JSON.stringify({
             type: 'sync_data',
-            fromDeviceId: fromDeviceId,
+            fromDeviceId: message.fromDeviceId,
             payload: payload,
             iv: iv,
-            timestamp: timestamp || Date.now(),
-          })
-        );
-
-        ws.send(
-          JSON.stringify({
-            type: 'sync_data_sent',
-            toDeviceId: toDeviceId,
             timestamp: Date.now(),
           })
         );
-      } catch (e) {
-        ws.send(JSON.stringify({ type: 'error', message: 'Failed to relay encrypted data' }));
+      } catch (_) {
+        try {
+          ws.send(JSON.stringify({ type: 'error', message: 'Failed to deliver sync data to partner' }));
+        } catch (_) {}
       }
-    } else {
-      ws.send(JSON.stringify({ type: 'error', message: 'Target device not connected' }));
     }
   }
 
   handleSyncComplete(ws, message) {
-    const { fromDeviceId, toDeviceId } = message;
-    const targetWs = this.devices.get(toDeviceId);
+    const { toDeviceId } = message;
+    const targetWs = this.getSocket(toDeviceId);
+
     if (targetWs) {
       try {
         targetWs.send(
           JSON.stringify({
             type: 'sync_complete',
-            fromDeviceId: fromDeviceId,
+            fromDeviceId: message.fromDeviceId,
             timestamp: Date.now(),
           })
         );
@@ -331,16 +387,25 @@ export class BloomRelayDO {
   }
 
   broadcastDeviceList() {
-    const deviceList = Array.from(this.devices.keys());
-    const message = JSON.stringify({
-      type: 'devices',
-      deviceList: deviceList.join(','),
-      count: deviceList.length,
+    const activeDeviceIds = [];
+    for (const ws of this.ctx.getWebSockets()) {
+      try {
+        const att = ws.deserializeAttachment();
+        if (att && att.deviceId) {
+          activeDeviceIds.push(att.deviceId);
+        }
+      } catch (_) {}
+    }
+
+    const payload = JSON.stringify({
+      type: 'device_list',
+      count: activeDeviceIds.length,
+      timestamp: Date.now(),
     });
 
-    for (const ws of this.devices.values()) {
+    for (const ws of this.ctx.getWebSockets()) {
       try {
-        ws.send(message);
+        ws.send(payload);
       } catch (_) {}
     }
   }
@@ -350,8 +415,8 @@ export class BloomRelayDO {
     if (deviceId) {
       this.devices.delete(deviceId);
       this.wsToDeviceId.delete(ws);
-      this.broadcastDeviceList();
     }
+    this.broadcastDeviceList();
   }
 
   async webSocketError(ws, error) {

@@ -274,7 +274,7 @@ class _SyncScreenState extends State<SyncScreen> {
                           width: double.infinity,
                           child: ElevatedButton.icon(
                             onPressed: _codeCtrl.text.trim().length == 6
-                                ? () {
+                                ? () async {
                                     final entered = _codeCtrl.text.trim().toUpperCase();
                                     if (entered == sync.pairingCode.toUpperCase()) {
                                       ScaffoldMessenger.of(context).showSnackBar(
@@ -282,11 +282,13 @@ class _SyncScreenState extends State<SyncScreen> {
                                       );
                                       return;
                                     }
-                                    sync.pairWith(entered);
-                                    FocusScope.of(context).unfocus();
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Sent pair request to partner...')),
-                                    );
+                                    await sync.pairWith(entered);
+                                    if (context.mounted) {
+                                      FocusScope.of(context).unfocus();
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Sent pair request to partner...')),
+                                      );
+                                    }
                                   }
                                 : null,
                             icon: const Icon(Icons.link_rounded, size: 18),

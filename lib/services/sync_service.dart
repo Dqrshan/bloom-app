@@ -187,9 +187,9 @@ class SyncService {
     if (!_partnerController.isClosed) _partnerController.add(null);
   }
 
-  void pairWith(String partnerCode) {
-    if (_currentState != SyncState.connected) {
-      connect();
+  Future<void> pairWith(String partnerCode) async {
+    if (_currentState != SyncState.connected || _channel == null) {
+      await connect();
     }
     final cleanCode = partnerCode.trim().toUpperCase();
     _send({

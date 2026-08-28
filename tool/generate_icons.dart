@@ -31,7 +31,7 @@ void main() {
     final size = sizeMap[density]!;
     final isRound = path.contains('_round');
 
-    final image = generateBloomingFlowerAppIcon(size, isRound: isRound);
+    final image = generateLocalFloristAppIcon(size, isRound: isRound);
     final file = File(path);
     file.parent.createSync(recursive: true);
     file.writeAsBytesSync(img.encodePng(image));
@@ -39,7 +39,7 @@ void main() {
   }
 }
 
-img.Image generateBloomingFlowerAppIcon(int size, {bool isRound = false}) {
+img.Image generateLocalFloristAppIcon(int size, {bool isRound = false}) {
   final image = img.Image(width: size, height: size);
   final center = (size - 1) / 2.0;
   final radius = size * 0.46;
@@ -77,47 +77,21 @@ img.Image generateBloomingFlowerAppIcon(int size, {bool isRound = false}) {
     }
   }
 
-  // Draw 5 Outer Radiant Blooming Petals
+  // Draw the crisp white local_florist lotus petals matching Settings page icon
   final white = img.ColorRgba8(255, 255, 255, 255);
-  final softPink = img.ColorRgba8(255, 240, 243, 220);
-  final petalDist = size * 0.17;
-  final petalRadiusX = size * 0.11;
-  final petalRadiusY = size * 0.18;
 
-  for (int i = 0; i < 5; i++) {
-    final angleDeg = i * 72.0;
-    final rad = angleDeg * pi / 180.0;
-    final cx = center + petalDist * sin(rad);
-    final cy = center - petalDist * cos(rad);
-    _drawPetal(image, cx, cy, petalRadiusX, petalRadiusY, angleDeg, white);
-  }
-
-  // Draw 5 Inner Layer Petals (offset by 36 degrees)
-  for (int i = 0; i < 5; i++) {
-    final angleDeg = i * 72.0 + 36.0;
-    final rad = angleDeg * pi / 180.0;
-    final cx = center + (petalDist * 0.7) * sin(rad);
-    final cy = center - (petalDist * 0.7) * cos(rad);
-    _drawPetal(image, cx, cy, petalRadiusX * 0.8, petalRadiusY * 0.8, angleDeg, softPink);
-  }
-
-  // Draw Flower Center Core
-  final coreRadius = size * 0.09;
-  final coreColor = img.ColorRgba8(224, 83, 104, 255);
-  final centerDotColor = img.ColorRgba8(255, 255, 255, 255);
-
-  for (int y = (center - coreRadius).toInt(); y <= (center + coreRadius).toInt(); y++) {
-    for (int x = (center - coreRadius).toInt(); x <= (center + coreRadius).toInt(); x++) {
-      final d2 = (x - center) * (x - center) + (y - center) * (y - center);
-      if (d2 <= coreRadius * coreRadius) {
-        if (d2 <= (coreRadius * 0.45) * (coreRadius * 0.45)) {
-          image.setPixel(x, y, centerDotColor);
-        } else {
-          image.setPixel(x, y, coreColor);
-        }
-      }
-    }
-  }
+  // Top center bud (pointy droplet)
+  _drawPetal(image, center, center * 0.72, size * 0.09, size * 0.22, 0, white);
+  // Center main body
+  _drawPetal(image, center, center * 1.02, size * 0.13, size * 0.26, 0, white);
+  // Left inner wing
+  _drawPetal(image, center - size * 0.12, center * 0.96, size * 0.10, size * 0.22, -26, white);
+  // Right inner wing
+  _drawPetal(image, center + size * 0.12, center * 0.96, size * 0.10, size * 0.22, 26, white);
+  // Left outer wing
+  _drawPetal(image, center - size * 0.19, center * 1.08, size * 0.08, size * 0.18, -50, white);
+  // Right outer wing
+  _drawPetal(image, center + size * 0.19, center * 1.08, size * 0.08, size * 0.18, 50, white);
 
   return image;
 }
@@ -140,7 +114,10 @@ void _drawPetal(img.Image image, double cx, double cy, double rx, double ry, dou
       final u = dx * cosA + dy * sinA;
       final v = -dx * sinA + dy * cosA;
 
-      if ((u * u) / (rx * rx) + (v * v) / (ry * ry) <= 1.0) {
+      final taper = 1.0 - (v / ry) * 0.35;
+      final currentRx = rx * taper.clamp(0.3, 1.2);
+
+      if ((u * u) / (currentRx * currentRx) + (v * v) / (ry * ry) <= 1.0) {
         if (image.getPixel(x, y).a > 0) {
           image.setPixel(x, y, color);
         }
