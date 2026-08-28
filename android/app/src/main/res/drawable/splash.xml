@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white"/>
+    <item android:gravity="center" android:width="80dp" android:height="80dp">
+        <vector
+            android:width="80dp"
+            android:height="80dp"
+            android:viewportWidth="80"
+            android:viewportHeight="80">
+            <!-- Rose circle -->
+            <path
+                android:fillColor="#E85577"
+                android:pathData="M40,4C20.15,4,4,20.15,4,40s16.15,36,36,36s36,-16.15,36,-36S59.85,4,40,4z"/>
+            <!-- Petals -->
+            <group android:translateX="40" android:translateY="40">
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:fillAlpha="0.92"
+                    android:pathData="M0,-22C6,-22,11,-12,11,-6s-5,10,-11,10S-11,0,-11,-6S-6,-22,0,-22z"
+                    android:rotation="0"/>
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:fillAlpha="0.92"
+                    android:pathData="M0,-22C6,-22,11,-12,11,-6s-5,10,-11,10S-11,0,-11,-6S-6,-22,0,-22z"
+                    android:rotation="72"/>
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:fillAlpha="0.92"
+                    android:pathData="M0,-22C6,-22,11,-12,11,-6s-5,10,-11,10S-11,0,-11,-6S-6,-22,0,-22z"
+                    android:rotation="144"/>
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:fillAlpha="0.92"
+                    android:pathData="M0,-22C6,-22,11,-12,11,-6s-5,10,-11,10S-11,0,-11,-6S-6,-22,0,-22z"
+                    android:rotation="216"/>
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:fillAlpha="0.92"
+                    android:pathData="M0,-22C6,-22,11,-12,11,-6s-5,10,-11,10S-11,0,-11,-6S-6,-22,0,-22z"
+                    android:rotation="288"/>
+                <!-- Center -->
+                <path
+                    android:fillColor="#FFFFFF"
+                    android:pathData="M0,-7C3.87,-7,7,-3.87,7,0s-3.13,7,-7,7s-7,-3.13,-7,0S-3.87,-7,0,-7z"/>
+            </group>
+        </vector>
+    </item>
+</layer-list>
