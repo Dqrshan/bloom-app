@@ -92,6 +92,10 @@ class AIService {
       return cached;
     }
 
+    if (_apiKey.isEmpty) {
+      return 'Welcome to Bloom! Your private wellness companion 🌸';
+    }
+
     String phase = 'Follicular phase';
     if (isOnPeriod) {
       phase = 'Menstrual phase (Period)';

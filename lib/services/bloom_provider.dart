@@ -167,8 +167,8 @@ class BloomProvider extends ChangeNotifier {
     _isLoading = false;
     notifyListeners();
 
-    // Fetch daily AI insight in background
-    _loadDailyAIGreeting();
+    // Fetch daily AI insight
+    await _loadDailyAIGreeting();
   }
 
   Future<void> _loadDailyAIGreeting() async {
