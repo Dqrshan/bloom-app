@@ -5,7 +5,7 @@ import 'package:intl/intl.dart';
 import '../../services/bloom_provider.dart';
 import '../../theme/bloom_theme.dart';
 import '../../widgets/log_period_dialog.dart';
-import '../notes/day_detail_screen.dart';
+import '../day/day_detail_screen.dart';
 import '../ai/bloom_ai_chat_screen.dart';
 
 class HomeScreen extends StatelessWidget {

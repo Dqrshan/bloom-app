@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'services/bloom_provider.dart';
 import 'theme/bloom_theme.dart';
+import 'theme/design_system.dart';
 import 'screens/home/home_screen.dart';
 import 'screens/calendar/calendar_screen.dart';
 import 'screens/settings/settings_screen.dart';
@@ -74,10 +75,27 @@ class _AppEntry extends StatelessWidget {
             body: Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
-                children: const [
-                  Icon(Icons.local_florist_rounded, size: 48, color: BloomColors.rose500),
-                  SizedBox(height: 16),
-                  CircularProgressIndicator(),
+                children: [
+                  Container(
+                    width: 88,
+                    height: 88,
+                    decoration: BoxDecoration(
+                      color: BloomColors.rose500.withValues(alpha: 0.10),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.local_florist_rounded, size: 44, color: BloomColors.rose500),
+                  ),
+                  SizedBox(height: BloomDesign.lg),
+                  Text('Bloom', style: BloomDesign.h2.copyWith(color: BloomColors.ink)),
+                  SizedBox(height: BloomDesign.sm),
+                  const SizedBox(
+                    width: 24,
+                    height: 24,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      valueColor: AlwaysStoppedAnimation(BloomColors.rose500),
+                    ),
+                  ),
                 ],
               ),
             ),

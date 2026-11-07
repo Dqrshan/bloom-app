@@ -61,30 +61,37 @@ class _DayDetailScreenState extends State<DayDetailScreen> {
     }
     return Scaffold(
       appBar: AppBar(
-        title: Text(DateFormat('EEEE, MMM d, yyyy').format(widget.date)),
+        title: Text(
+          DateFormat('EEEE, MMM d, yyyy').format(widget.date),
+          style: BloomDesign.h3.copyWith(color: BloomColors.ink),
+        ),
         actions: [
           if (_existing != null)
             IconButton(
-              icon: const Icon(Icons.delete_outline, color: Colors.red),
+              icon: const Icon(Icons.delete_outline, color: BloomColors.periodRed),
               tooltip: 'Delete Note',
               onPressed: _confirmDelete,
             ),
         ],
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 16, 20, 40),
+        padding: const EdgeInsets.fromLTRB(20, 16, 20, 80),
         child: Column(
           children: [
             _buildFlowLevel(),
+            const SizedBox(height: BloomDesign.md),
             _buildMood(),
+            const SizedBox(height: BloomDesign.md),
             _buildCramps(),
+            const SizedBox(height: BloomDesign.md),
             _buildSymptoms(),
+            const SizedBox(height: BloomDesign.md),
             _buildNotes(),
-            const SizedBox(height: 20),
-            ElevatedButton.icon(
+            const SizedBox(height: BloomDesign.xl),
+            BloomDesign.primaryButton(
+              label: 'Save Entry',
               onPressed: _save,
-              icon: const Icon(Icons.check_circle_outline),
-              label: const Text('Save Entry'),
+              icon: Icons.check_circle_outline,
             ),
           ],
         ),
@@ -93,61 +100,69 @@ class _DayDetailScreenState extends State<DayDetailScreen> {
   }
 
   Widget _buildFlowLevel() {
-    List<Widget> flowWidgets = [];
-    for (var f in _flows) {
-      flowWidgets.add(Padding(
-        padding: const EdgeInsets.only(right: 8),
-        child: ChoiceChip(
-          label: Text(f),
-          selected: _flowLevel == f,
-          onSelected: (_) => setState(() => _flowLevel = f),
-          selectedColor: Colors.redAccent.withValues(alpha: 0.15),
-          labelStyle: TextStyle(color: _flowLevel == f ? Colors.red : Colors.black87,
-            fontWeight: _flowLevel == f ? FontWeight.w600 : FontWeight.normal),
-        ),
-      ));
-    }
-    return _buildCard('Flow Level', SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(children: flowWidgets),
+    return _buildCard('Flow Level', Wrap(
+      spacing: BloomDesign.sm,
+      children: _flows.map((f) => BloomDesign.pillChip(
+        label: f,
+        selected: _flowLevel == f,
+        onTap: () => setState(() => _flowLevel = f),
+        activeColor: BloomColors.periodRed,
+      )).toList(),
     ));
   }
 
   Widget _buildMood() {
-    return _buildCard('Mood', DropdownButtonFormField<String>(
-      initialValue: _mood,
-      decoration: const InputDecoration(hintText: 'Select mood'),
-      items: _moods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
-      onChanged: (v) => setState(() => _mood = v),
+    return _buildCard('Mood', Wrap(
+      spacing: BloomDesign.sm,
+      children: _moods.map((m) => BloomDesign.pillChip(
+        label: m,
+        selected: _mood == m,
+        onTap: () => setState(() => _mood = _mood == m ? null : m),
+        activeColor: BloomColors.lavender,
+      )).toList(),
     ));
   }
 
   Widget _buildCramps() {
-    return _buildCard('Cramps', DropdownButtonFormField<int>(
-      initialValue: _cramps,
-      decoration: const InputDecoration(hintText: 'Select cramp severity'),
-      items: List.generate(11, (i) => DropdownMenuItem(value: i, child: Text('$i/10'))).toList(),
-      onChanged: (v) => setState(() => _cramps = v!),
+    return _buildCard('Cramps', Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Slider(
+          value: _cramps.toDouble(),
+          min: 0,
+          max: 10,
+          divisions: 10,
+          activeColor: BloomColors.periodRed,
+          label: '$_cramps/10',
+          onChanged: (v) => setState(() => _cramps = v.round()),
+        ),
+        Text(
+          _cramps == 0 ? 'No cramps' : _cramps <= 3 ? 'Mild' : _cramps <= 6 ? 'Moderate' : 'Severe',
+          style: BloomDesign.caption.copyWith(color: BloomColors.muted),
+        ),
+      ],
     ));
   }
 
   Widget _buildSymptoms() {
-    List<Widget> symptomWidgets = [];
-    for (var s in _symptomList) {
-      symptomWidgets.add(Padding(
-        padding: const EdgeInsets.only(right: 4),
-        child: FilterChip(
-          label: Text(s), selected: _symptoms.contains(s),
-          onSelected: (v) => setState(() => _symptoms.contains(s) ? _symptoms.remove(s) : _symptoms.add(s)),
-        ),
-      ));
-    }
-    return _buildCard('Symptoms', Wrap(children: symptomWidgets));
+    return _buildCard('Symptoms', Wrap(
+      spacing: BloomDesign.sm,
+      runSpacing: BloomDesign.sm,
+      children: _symptomList.map((s) => BloomDesign.pillChip(
+        label: s,
+        selected: _symptoms.contains(s),
+        onTap: () => setState(() => _symptoms.contains(s) ? _symptoms.remove(s) : _symptoms.add(s)),
+        activeColor: BloomColors.sage,
+      )).toList(),
+    ));
   }
 
   Widget _buildNotes() {
-    return _buildCard('Notes', TextField(controller: _contentCtrl, maxLines: 3,
-      decoration: const InputDecoration(hintText: 'Additional notes...')));
+    return _buildCard('Notes', BloomDesign.textField(
+      controller: _contentCtrl,
+      hint: 'How are you feeling today?',
+      maxLines: 3,
+    ));
   }
 
   Widget _buildCard(String title, Widget child) {

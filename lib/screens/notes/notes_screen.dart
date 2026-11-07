@@ -3,7 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../services/bloom_provider.dart';
 import '../../theme/bloom_theme.dart';
-import 'day_detail_screen.dart';
+import '../day/day_detail_screen.dart';
 
 class NotesScreen extends StatelessWidget {
   const NotesScreen({super.key});

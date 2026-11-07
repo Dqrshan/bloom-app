@@ -4,7 +4,7 @@ import '../../services/bloom_provider.dart';
 import '../../services/pdf_export_service.dart';
 import '../../theme/bloom_theme.dart';
 import '../../widgets/log_period_dialog.dart';
-import '../notes/day_detail_screen.dart';
+import '../day/day_detail_screen.dart';
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
