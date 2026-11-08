@@ -1,12 +1,16 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:file_picker/file_picker.dart';
+
 import '../../services/bloom_provider.dart';
 import '../../services/pdf_export_service.dart';
 import '../../theme/bloom_theme.dart';
+import '../../theme/design_system.dart';
+import '../ai/bloom_ai_chat_screen.dart';
 
 class SettingsScreen extends StatelessWidget {
   const SettingsScreen({super.key});
@@ -15,171 +19,161 @@ class SettingsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BloomProvider>(
       builder: (context, prov, _) {
-        return SafeArea(
-          bottom: false,
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(20, 20, 20, 100),
-            children: [
-              Text(
-                'Settings',
-                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.5,
-                    ),
-              ),
-              const SizedBox(height: 20),
+        final p = BloomPalette.of(context);
+        final theme = Theme.of(context);
 
-              // App Header Card
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 24, horizontal: 20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: BloomColors.divider, width: 0.5),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 56,
-                      height: 56,
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [BloomColors.rose500, BloomColors.rose600],
-                        ),
-                        borderRadius: BorderRadius.circular(16),
+        return ListView(
+          padding: const EdgeInsets.fromLTRB(
+            BloomDesign.gutter,
+            12,
+            BloomDesign.gutter,
+            24,
+          ),
+          children: [
+            const BloomPageHeader(title: 'Settings'),
+            const SizedBox(height: 16),
+
+            // Identity
+            BloomDesign.card(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+              child: Row(
+                children: [
+                  Container(
+                    width: 46,
+                    height: 46,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [BloomColors.rose400, BloomColors.rose600],
                       ),
-                      child: const Icon(Icons.local_florist, color: Colors.white, size: 28),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    const SizedBox(height: 10),
-                    const Text(
-                      'Bloom',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.5),
+                    child: const Icon(
+                      Icons.local_florist,
+                      color: Colors.white,
+                      size: 24,
                     ),
-                    const SizedBox(height: 2),
-                    const Text(
-                      'Private Couples’ Period Tracker • v1.0.0',
-                      style: TextStyle(color: BloomColors.muted, fontSize: 12),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Bloom', style: theme.textTheme.titleLarge),
+                        const SizedBox(height: 2),
+                        Text(
+                          'Private Couples’ Period Tracker • v1.0.0',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: p.muted,
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 24),
+            ),
+            const SizedBox(height: 22),
 
-              // Data Management Section
-              _header('DATA MANAGEMENT'),
-              _section([
-                _item(
-                  Icons.picture_as_pdf_outlined,
-                  'Export PDF Health Report',
-                  'Generate and share a printable period & symptom summary',
+            // Companion
+            BloomDesign.groupLabel(context, 'BLOOM AI'),
+            BloomGroup(
+              children: [
+                _SettingsRow(
+                  icon: Icons.auto_awesome,
+                  iconColor: p.notes,
+                  title: 'Bloom AI Companion',
+                  subtitle:
+                      'Ask about your cycle, symptoms, mood, or partner support',
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const BloomAIChatScreen(),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 22),
+
+            // Data
+            BloomDesign.groupLabel(context, 'DATA MANAGEMENT'),
+            BloomGroup(
+              children: [
+                _SettingsRow(
+                  icon: Icons.picture_as_pdf_outlined,
+                  iconColor: p.period,
+                  title: 'Export PDF Health Report',
+                  subtitle:
+                      'Generate and share a printable period & symptom summary',
                   onTap: () => _exportPdf(context, prov),
                 ),
-                const Divider(height: 1, indent: 52),
-                _item(
-                  Icons.file_download_outlined,
-                  'Export JSON Backup',
-                  'Save raw cycles and notes to a backup file',
+                const Divider(height: 1, indent: 60),
+                _SettingsRow(
+                  icon: Icons.file_download_outlined,
+                  iconColor: p.notes,
+                  title: 'Export JSON Backup',
+                  subtitle: 'Save raw cycles and notes to a backup file',
                   onTap: () => _exportToFile(context),
                 ),
-                const Divider(height: 1, indent: 52),
-                _item(
-                  Icons.file_upload_outlined,
-                  'Restore from Backup',
-                  'Import data from a backup file',
+                const Divider(height: 1, indent: 60),
+                _SettingsRow(
+                  icon: Icons.file_upload_outlined,
+                  iconColor: p.fertile,
+                  title: 'Restore from Backup',
+                  subtitle: 'Import data from a backup file',
                   onTap: () => _importFromFile(context),
                 ),
-                const Divider(height: 1, indent: 52),
-                _item(
-                  Icons.delete_outline_rounded,
-                  'Clear All Data',
-                  'Permanently delete cycles and notes from this device',
-                  color: BloomColors.periodRed,
+                const Divider(height: 1, indent: 60),
+                _SettingsRow(
+                  icon: Icons.delete_outline_rounded,
+                  iconColor: p.period,
+                  title: 'Clear All Data',
+                  subtitle:
+                      'Permanently delete cycles and notes from this device',
                   onTap: () => _deleteAll(context),
                 ),
-              ]),
-              const SizedBox(height: 24),
+              ],
+            ),
+            const SizedBox(height: 22),
 
-              // Privacy & Security Section
-              _header('PRIVACY & SECURITY'),
-              _section([
-                _item(
-                  Icons.shield_outlined,
-                  'Security & Encryption',
-                  'AES-256 client-side encryption, 100% on-device storage',
+            // Privacy
+            BloomDesign.groupLabel(context, 'PRIVACY & SECURITY'),
+            BloomGroup(
+              children: [
+                _SettingsRow(
+                  icon: Icons.shield_outlined,
+                  iconColor: p.fertile,
+                  title: 'Security & Encryption',
+                  subtitle:
+                      'AES-256 client-side encryption, 100% on-device storage',
                   onTap: () => _showSecurityDialog(context),
                 ),
-                const Divider(height: 1, indent: 52),
-                _item(
-                  Icons.hub_outlined,
-                  'How Partner Sync Works',
-                  'Zero-knowledge relay — your data is never stored on a server',
+                const Divider(height: 1, indent: 60),
+                _SettingsRow(
+                  icon: Icons.hub_outlined,
+                  iconColor: p.notes,
+                  title: 'How Partner Sync Works',
+                  subtitle:
+                      'Zero-knowledge relay — your data is never stored on a server',
                   onTap: () => _showSyncHowItWorks(context),
                 ),
-              ]),
-            ],
-          ),
+              ],
+            ),
+          ],
         );
       },
     );
   }
 
-  static Widget _header(String t) => Padding(
-        padding: const EdgeInsets.only(bottom: 8, left: 4),
-        child: Text(
-          t,
-          style: const TextStyle(
-            fontWeight: FontWeight.w600,
-            fontSize: 11,
-            color: BloomColors.muted,
-            letterSpacing: 0.8,
-          ),
-        ),
-      );
-
-  static Widget _section(List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: BloomColors.divider, width: 0.5),
-      ),
-      child: Column(children: children),
-    );
-  }
-
-  static Widget _item(
-    IconData icon,
-    String title,
-    String subtitle, {
-    VoidCallback? onTap,
-    Color? color,
-  }) {
-    return ListTile(
-      leading: Icon(icon, color: color ?? BloomColors.inkLight, size: 22),
-      title: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-          fontSize: 14,
-          color: color ?? BloomColors.ink,
-        ),
-      ),
-      subtitle: Text(
-        subtitle,
-        style: const TextStyle(fontSize: 12, color: BloomColors.muted),
-      ),
-      trailing: onTap != null
-          ? const Icon(Icons.chevron_right, size: 18, color: BloomColors.muted)
-          : null,
-      onTap: onTap,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-    );
-  }
-
-  static Future<void> _exportPdf(BuildContext context, BloomProvider prov) async {
+  static Future<void> _exportPdf(
+    BuildContext context,
+    BloomProvider prov,
+  ) async {
     final messenger = ScaffoldMessenger.of(context);
     messenger.showSnackBar(
-      const SnackBar(content: Text('Generating PDF Report...'), duration: Duration(seconds: 1)),
+      const SnackBar(
+        content: Text('Generating PDF Report...'),
+        duration: Duration(seconds: 1),
+      ),
     );
     try {
       await PdfExportService.sharePeriodReport(
@@ -224,9 +218,7 @@ class SettingsScreen extends StatelessWidget {
         );
       }
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Export failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Export failed: $e')));
     }
   }
 
@@ -262,9 +254,7 @@ class SettingsScreen extends StatelessWidget {
         const SnackBar(content: Text('Data imported successfully!')),
       );
     } catch (e) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Import failed: $e')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Import failed: $e')));
     }
   }
 
@@ -275,8 +265,11 @@ class SettingsScreen extends StatelessWidget {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        icon: const Icon(Icons.warning_amber_rounded, color: BloomColors.periodRed, size: 36),
+        icon: Icon(
+          Icons.warning_amber_rounded,
+          color: BloomPalette.of(ctx).period,
+          size: 34,
+        ),
         title: const Text('Delete everything?'),
         content: const Text(
           'All cycles, notes, and records will be permanently removed from this device. This action cannot be undone.',
@@ -288,7 +281,9 @@ class SettingsScreen extends StatelessWidget {
           ),
           ElevatedButton(
             onPressed: () => Navigator.pop(ctx, true),
-            style: ElevatedButton.styleFrom(backgroundColor: BloomColors.periodRed),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: BloomPalette.of(ctx).period,
+            ),
             child: const Text('Delete All'),
           ),
         ],
@@ -297,56 +292,55 @@ class SettingsScreen extends StatelessWidget {
 
     if (confirmed == true) {
       await prov.deleteAllData();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('All data deleted')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('All data deleted')));
     }
   }
 
   static void _showSecurityDialog(BuildContext context) {
+    final p = BloomPalette.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.shield, color: BloomColors.sage),
-            SizedBox(width: 8),
-            Text('Security & Privacy'),
+            Icon(Icons.shield, color: p.fertile),
+            const SizedBox(width: 8),
+            const Text('Security & Privacy'),
           ],
         ),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 '1. Device-Local Storage',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                style: Theme.of(ctx).textTheme.titleSmall,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'All personal health data is stored strictly on your device storage. No centralized database or cloud account exists.',
-                style: TextStyle(fontSize: 13, color: BloomColors.inkLight),
+                style: Theme.of(ctx).textTheme.bodyMedium,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
                 '2. Client-Side Encryption',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                style: Theme.of(ctx).textTheme.titleSmall,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Data is encrypted using AES-256 before leaving your phone during partner sync.',
-                style: TextStyle(fontSize: 13, color: BloomColors.inkLight),
+                style: Theme.of(ctx).textTheme.bodyMedium,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
                 '3. Zero-Knowledge Relay',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                style: Theme.of(ctx).textTheme.titleSmall,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'The relay server is stateless and never logs or stores any plaintext data.',
-                style: TextStyle(fontSize: 13, color: BloomColors.inkLight),
+                style: Theme.of(ctx).textTheme.bodyMedium,
               ),
             ],
           ),
@@ -362,49 +356,50 @@ class SettingsScreen extends StatelessWidget {
   }
 
   static void _showSyncHowItWorks(BuildContext context) {
+    final p = BloomPalette.of(context);
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.hub_outlined, color: BloomColors.rose500),
-            SizedBox(width: 8),
-            Text('How Sync Works'),
+            Icon(Icons.hub_outlined, color: p.period),
+            const SizedBox(width: 8),
+            const Text('How Sync Works'),
           ],
         ),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
                 'Step 1: Pairing',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                style: Theme.of(ctx).textTheme.titleSmall,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Enter your partner’s 6-character pairing code to establish a secure peer link.',
-                style: TextStyle(fontSize: 13, color: BloomColors.inkLight),
+                style: Theme.of(ctx).textTheme.bodyMedium,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
                 'Step 2: Mutual Approval',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                style: Theme.of(ctx).textTheme.titleSmall,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Whenever a sync is initiated, the other device is prompted to explicitly approve data transfer.',
-                style: TextStyle(fontSize: 13, color: BloomColors.inkLight),
+                style: Theme.of(ctx).textTheme.bodyMedium,
               ),
-              SizedBox(height: 12),
+              const SizedBox(height: 14),
               Text(
                 'Step 3: Encrypted Exchange',
-                style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                style: Theme.of(ctx).textTheme.titleSmall,
               ),
-              SizedBox(height: 4),
+              const SizedBox(height: 4),
               Text(
                 'Cycles and notes are encrypted locally, forwarded through the relay server, and merged cleanly on your partner’s phone.',
-                style: TextStyle(fontSize: 13, color: BloomColors.inkLight),
+                style: Theme.of(ctx).textTheme.bodyMedium,
               ),
             ],
           ),
@@ -415,6 +410,69 @@ class SettingsScreen extends StatelessWidget {
             child: const Text('Got it'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _SettingsRow extends StatelessWidget {
+  final IconData icon;
+  final Color iconColor;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _SettingsRow({
+    required this.icon,
+    required this.iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final p = BloomPalette.of(context);
+    final theme = Theme.of(context);
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  color: iconColor.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(BloomDesign.radiusSm),
+                ),
+                child: Icon(icon, size: 18, color: iconColor),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: theme.textTheme.titleSmall),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: theme.textTheme.bodySmall?.copyWith(
+                        color: p.muted,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              Icon(Icons.chevron_right, size: 18, color: p.muted),
+            ],
+          ),
+        ),
       ),
     );
   }

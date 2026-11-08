@@ -35,6 +35,10 @@ flutter:
   uses-material-design: true
   assets:
     - assets/icon.png
+  fonts:
+    - family: Outfit
+      fonts:
+        - asset: assets/fonts/Outfit.ttf
 
 flutter_launcher_icons:
   android: "launcher_icon"

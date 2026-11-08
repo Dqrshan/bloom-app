@@ -47,8 +47,26 @@ void main() {
       await ai.setApiKey('custom-key-12345');
       expect(ai.apiKey, equals('custom-key-12345'));
 
-      await ai.setModel('meta/llama-3.2-90b-vision-instruct');
-      expect(ai.model, equals('meta/llama-3.2-90b-vision-instruct'));
+      await ai.setModel('meta/llama-3.1-8b-instruct');
+      expect(ai.model, equals('meta/llama-3.1-8b-instruct'));
+    });
+
+    test('AIService migrates a stored retired model to the current default',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'bloom_device_id': 'testdevice123',
+        'bloom_ai_api_key': AIService.defaultApiKey,
+        'bloom_ai_model': AIService.retiredModel,
+      });
+
+      final ai = AIService();
+      await ai.init();
+
+      expect(ai.model, equals(AIService.defaultModel));
+      expect(ai.model, isNot(equals(AIService.retiredModel)));
+
+      final prefs = await SharedPreferences.getInstance();
+      expect(prefs.getString('bloom_ai_model'), equals(AIService.defaultModel));
     });
   });
 

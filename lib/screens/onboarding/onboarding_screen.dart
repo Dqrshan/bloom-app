@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../theme/bloom_theme.dart';
 import '../../theme/design_system.dart';
+import '../../widgets/bloom_dial.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -35,7 +37,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     },
     {
       'title': 'Private by design',
-      'subtitle': 'Data stays on your device. Partner sync is end-to-end encrypted.',
+      'subtitle':
+          'Data stays on your device. Partner sync is end-to-end encrypted.',
       'icon': Icons.shield_rounded,
       'color': BloomColors.sage,
     },
@@ -49,51 +52,66 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   @override
+  void dispose() {
+    _pageCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final p = BloomPalette.of(context);
+    final theme = Theme.of(context);
+
     return Scaffold(
-      backgroundColor: BloomColors.surface,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: SafeArea(
         child: Column(
           children: [
+            const SizedBox(height: 32),
+            const BloomMark(size: 104),
+            const SizedBox(height: 20),
             Expanded(
               child: PageView.builder(
                 controller: _pageCtrl,
                 itemCount: _pages.length,
                 onPageChanged: (i) => setState(() => _page = i),
                 itemBuilder: (_, i) {
-                  final p = _pages[i];
+                  final page = _pages[i];
+                  final color = page['color'] as Color;
                   return Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: BloomDesign.lg),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: BloomDesign.xl,
+                    ),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Container(
-                          width: 120,
-                          height: 120,
+                          width: 64,
+                          height: 64,
                           decoration: BoxDecoration(
-                            color: (p['color'] as Color).withValues(alpha: 0.10),
-                            shape: BoxShape.circle,
-                            boxShadow: [
-                              BoxShadow(
-                                color: (p['color'] as Color).withValues(alpha: 0.15),
-                                blurRadius: 24,
-                                offset: const Offset(0, 8),
-                              ),
-                            ],
+                            color: color.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
                           ),
-                          child: Icon(p['icon'] as IconData, size: 48, color: p['color'] as Color),
+                          child: Icon(
+                            page['icon'] as IconData,
+                            size: 28,
+                            color: color,
+                          ),
                         ),
-                        const SizedBox(height: BloomDesign.xxl),
+                        const SizedBox(height: 24),
                         Text(
-                          p['title'] as String,
-                          style: BloomDesign.h2.copyWith(color: BloomColors.ink),
+                          page['title'] as String,
                           textAlign: TextAlign.center,
+                          style: theme.textTheme.headlineMedium,
                         ),
-                        const SizedBox(height: BloomDesign.md),
+                        const SizedBox(height: 12),
                         Text(
-                          p['subtitle'] as String,
-                          style: BloomDesign.body.copyWith(color: BloomColors.inkLight),
+                          page['subtitle'] as String,
                           textAlign: TextAlign.center,
+                          style: theme.textTheme.bodyLarge?.copyWith(
+                            color: p.muted,
+                            height: 1.5,
+                          ),
                         ),
                       ],
                     ),
@@ -101,8 +119,13 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 },
               ),
             ),
-            Container(
-              padding: const EdgeInsets.all(BloomDesign.md),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                BloomDesign.gutter,
+                0,
+                BloomDesign.gutter,
+                BloomDesign.lg,
+              ),
               child: Column(
                 children: [
                   Row(
@@ -112,17 +135,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                         duration: const Duration(milliseconds: 200),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         height: 6,
-                        width: _page == i ? 24 : 8,
+                        width: _page == i ? 26 : 8,
                         decoration: BoxDecoration(
-                          color: _page == i ? BloomColors.rose500 : BloomColors.divider,
+                          color: _page == i ? p.period : p.divider,
                           borderRadius: BorderRadius.circular(3),
                         ),
                       );
                     }),
                   ),
-                  const SizedBox(height: BloomDesign.xxl),
+                  const SizedBox(height: 24),
                   if (_page == _pages.length - 1)
                     BloomDesign.primaryButton(
+                      context,
                       label: 'Get started',
                       onPressed: _finish,
                       icon: Icons.arrow_forward_rounded,
@@ -131,22 +155,38 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                     Row(
                       children: [
                         Expanded(
-                          child: BloomDesign.ghostButton(
-                            label: 'Skip',
-                            onPressed: _finish,
+                          child: SizedBox(
+                            height: 52,
+                            child: TextButton(
+                              onPressed: _finish,
+                              style: TextButton.styleFrom(
+                                foregroundColor: p.muted,
+                                backgroundColor: p.surfaceAlt,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(
+                                    BloomDesign.radiusMd,
+                                  ),
+                                ),
+                              ),
+                              child: const Text('Skip'),
+                            ),
                           ),
                         ),
-                        const SizedBox(width: BloomDesign.md),
+                        const SizedBox(width: 12),
                         Expanded(
+                          flex: 2,
                           child: BloomDesign.primaryButton(
-                            label: _page == _pages.length - 2 ? 'Finish' : 'Next',
+                            context,
+                            label: _page == _pages.length - 2
+                                ? 'Finish'
+                                : 'Next',
                             onPressed: () {
                               if (_page == _pages.length - 2) {
                                 _finish();
                               } else {
                                 _pageCtrl.nextPage(
-                                  duration: const Duration(milliseconds: 300),
-                                  curve: Curves.easeOut,
+                                  duration: const Duration(milliseconds: 280),
+                                  curve: Curves.easeOutCubic,
                                 );
                               }
                             },

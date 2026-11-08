@@ -2,7 +2,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:bloom/main.dart';
+import 'package:bloom/app.dart';
 import 'package:bloom/services/database_service.dart';
 import 'package:bloom/services/sync_service.dart';
 
@@ -14,6 +14,9 @@ void main() {
       'bloom_device_id': 'testdevice123',
       'bloom_pairing_code': 'K8Y4B2',
       'bloom_server_url': 'ws://localhost:3000',
+      // The tab assertions below run against the app shell, so the first-run
+      // tour must already be behind us.
+      'bloom_has_launched': true,
     });
     testDbPath = '${Directory.systemTemp.path}/test_bloom_widget_${DateTime.now().microsecondsSinceEpoch}.json';
     DatabaseService.setCustomPath(testDbPath);

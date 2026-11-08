@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
+
+import '../../models/day_note.dart';
 import '../../services/bloom_provider.dart';
 import '../../theme/bloom_theme.dart';
+import '../../theme/design_system.dart';
 import '../day/day_detail_screen.dart';
 
 class NotesScreen extends StatelessWidget {
@@ -12,172 +15,182 @@ class NotesScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<BloomProvider>(
       builder: (context, prov, _) {
-        final notes = prov.notes;
+        final notes = [...prov.notes]..sort((a, b) => b.date.compareTo(a.date));
+        final p = BloomPalette.of(context);
 
-        return SafeArea(
-          bottom: false,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'Daily Notes',
-                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            letterSpacing: -0.5,
-                          ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.add_circle_outline, color: BloomColors.rose500),
-                      tooltip: 'Add note for today',
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => DayDetailScreen(date: DateTime.now()),
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                BloomDesign.gutter,
+                12,
+                BloomDesign.gutter,
+                0,
               ),
-              if (notes.isEmpty)
-                Expanded(
-                  child: Center(
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 40),
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: BloomColors.rose50,
-                              borderRadius: BorderRadius.circular(24),
-                            ),
-                            child: const Icon(Icons.edit_note, size: 44, color: BloomColors.rose500),
-                          ),
-                          const SizedBox(height: 16),
-                          const Text(
-                            'No notes logged yet',
-                            style: TextStyle(
-                              fontSize: 17,
-                              fontWeight: FontWeight.w600,
-                              color: BloomColors.ink,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Tap the button above or any day on the calendar to record mood, flow, symptoms, and daily thoughts.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(fontSize: 13, color: BloomColors.muted, height: 1.4),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                )
-              else
-                Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(20, 4, 20, 100),
-                    itemCount: notes.length,
-                    itemBuilder: (context, i) {
-                      final note = notes[i];
-                      return Card(
-                        margin: const EdgeInsets.only(bottom: 10),
-                        child: InkWell(
-                          borderRadius: BorderRadius.circular(16),
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => DayDetailScreen(date: note.date)),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Text(
-                                      DateFormat('EEE, MMM d, yyyy').format(note.date),
-                                      style: const TextStyle(
-                                        fontWeight: FontWeight.w600,
-                                        fontSize: 14,
-                                        color: BloomColors.ink,
-                                      ),
-                                    ),
-                                    Row(
-                                      children: [
-                                        if (note.mood != null)
-                                          Text(
-                                            note.mood!,
-                                            style: const TextStyle(fontSize: 18),
-                                          ),
-                                        if (note.flowLevel != null && note.flowLevel != 'None') ...[
-                                          const SizedBox(width: 6),
-                                          _tag(note.flowLevel!, BloomColors.periodRed),
-                                        ],
-                                        if (note.crampsSeverity > 0) ...[
-                                          const SizedBox(width: 6),
-                                          _tag('Cramps ${note.crampsSeverity}/10', BloomColors.peach),
-                                        ],
-                                      ],
-                                    ),
-                                  ],
-                                ),
-                                if (note.content.isNotEmpty) ...[
-                                  const SizedBox(height: 8),
-                                  Text(
-                                    note.content,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: const TextStyle(color: BloomColors.inkLight, fontSize: 13, height: 1.4),
-                                  ),
-                                ],
-                                if (note.symptoms.isNotEmpty) ...[
-                                  const SizedBox(height: 10),
-                                  Wrap(
-                                    spacing: 6,
-                                    runSpacing: 4,
-                                    children: note.symptoms
-                                        .take(4)
-                                        .map((s) => _tag(s, BloomColors.sage))
-                                        .toList(),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
+              child: BloomPageHeader(
+                title: 'Daily Notes',
+                actions: [
+                  IconButton(
+                    icon: Icon(Icons.add_circle_outline, color: p.notes),
+                    tooltip: 'Add note for today',
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => DayDetailScreen(date: DateTime.now()),
                         ),
                       );
                     },
                   ),
-                ),
-            ],
-          ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 14),
+            Expanded(
+              child: notes.isEmpty
+                  ? BloomDesign.emptyState(
+                      context,
+                      icon: Icons.edit_note_rounded,
+                      iconColor: p.notes,
+                      title: 'No notes logged yet',
+                      subtitle:
+                          'Tap the button above or any day on the calendar to record mood, flow, symptoms, and daily thoughts.',
+                    )
+                  : ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(
+                        BloomDesign.gutter,
+                        0,
+                        BloomDesign.gutter,
+                        24,
+                      ),
+                      itemCount: notes.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 10),
+                      itemBuilder: (context, i) => _NoteCard(
+                        note: notes[i],
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                DayDetailScreen(date: notes[i].date),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          ],
         );
       },
     );
   }
+}
 
-  static Widget _tag(String text, Color color) {
+class _NoteCard extends StatelessWidget {
+  final DayNote note;
+  final VoidCallback onTap;
+
+  const _NoteCard({required this.note, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final p = BloomPalette.of(context);
+    final theme = Theme.of(context);
+
+    final tags = <Widget>[];
+    if (note.flowLevel != null && note.flowLevel != 'None') {
+      tags.add(_Tag(label: note.flowLevel!, color: p.period));
+    }
+    if (note.crampsSeverity > 0) {
+      tags.add(
+        _Tag(label: 'Cramps ${note.crampsSeverity}/10', color: p.predicted),
+      );
+    }
+
+    return BloomDesign.card(
+      padding: EdgeInsets.zero,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        DateFormat('EEE, MMM d, yyyy').format(note.date),
+                        style: theme.textTheme.titleSmall,
+                      ),
+                    ),
+                    if (note.mood != null)
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          note.mood!,
+                          style: const TextStyle(fontSize: 18),
+                        ),
+                      ),
+                  ],
+                ),
+                if (tags.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 6, runSpacing: 6, children: tags),
+                ],
+                if (note.content.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    note.content,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: p.inkLight,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+                if (note.symptoms.isNotEmpty) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 6,
+                    children: note.symptoms
+                        .take(4)
+                        .map((s) => _Tag(label: s, color: p.fertile))
+                        .toList(),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _Tag extends StatelessWidget {
+  final String label;
+  final Color color;
+
+  const _Tag({required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(6),
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
-        text,
-        style: TextStyle(fontSize: 11, color: color, fontWeight: FontWeight.w600),
+        label,
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
+          fontWeight: FontWeight.w600,
+          fontVariations: const [FontVariation('wght', 600)],
+          color: color,
+        ),
       ),
     );
   }

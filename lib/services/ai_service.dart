@@ -11,7 +11,16 @@ class AIService {
 
   static const String defaultApiKey =
       String.fromEnvironment('BLOOM_AI_KEY', defaultValue: '');
-  static const String defaultModel = 'meta/llama-3.2-11b-vision-instruct';
+  /// The model Bloom shipped with. NVIDIA retired it, so a stored preference
+  /// holding this exact value was never a user's own choice — it is just the
+  /// old default, and must not keep the app pinned to a dead model.
+  static const String retiredModel = 'meta/llama-3.2-11b-vision-instruct';
+  /// Text-only: Bloom never sends an image, so the old vision model only added
+  /// cost and latency. Verified live against integrate.api.nvidia.com on
+  /// 2026-11-08 — most models still listed in NVIDIA's docs (llama-3.x,
+  /// llama-3.3-70b, gpt-oss-120b, qwen3-next, mistral-nemotron, kimi) answer
+  /// 410 Gone.
+  static const String defaultModel = 'openai/gpt-oss-20b';
   static const String endpoint =
       String.fromEnvironment('BLOOM_AI_ENDPOINT', defaultValue: 'https://integrate.api.nvidia.com/v1/chat/completions');
 
@@ -24,7 +33,17 @@ class AIService {
   Future<void> init() async {
     final prefs = await SharedPreferences.getInstance();
     _apiKey = prefs.getString('bloom_ai_api_key') ?? defaultApiKey;
-    _model = prefs.getString('bloom_ai_model') ?? defaultModel;
+
+    // Only a stored value that differs from the retired default counts as a
+    // deliberate choice; anything else is the old shipped default and is
+    // migrated forward in memory and on disk.
+    final stored = prefs.getString('bloom_ai_model');
+    if (stored != null && stored.isNotEmpty && stored != retiredModel) {
+      _model = stored;
+    } else {
+      _model = defaultModel;
+      await prefs.setString('bloom_ai_model', _model);
+    }
   }
 
   Future<void> setApiKey(String key) async {
@@ -58,20 +77,32 @@ class AIService {
         'messages': messages,
         'temperature': temperature,
         'max_tokens': maxTokens,
+        // The default model is reasoning-capable: it returns the answer in
+        // `content` and its thinking in a separate `reasoning_content` field.
+        // At the default medium effort the reasoning eats the short token
+        // budget Bloom uses and the answer comes back empty.
+        'reasoning_effort': 'low',
       }),
     );
 
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final choices = data['choices'] as List?;
-      if (choices != null && choices.isNotEmpty) {
-        final msg = choices[0]['message'] as Map<String, dynamic>?;
-        final content = msg?['content'] as String?;
-        if (content != null) {
-          return content.trim().replaceAll('"', '');
-        }
+      final choice =
+          (choices == null || choices.isEmpty) ? null : choices.first;
+      final msg = choice is Map<String, dynamic>
+          ? choice['message'] as Map<String, dynamic>?
+          : null;
+      final content = msg?['content'] as String?;
+
+      // A reasoning-capable model can spend its whole token budget on thinking
+      // and return no answer at all. That has to fail so each caller's own
+      // fallback runs, instead of surfacing one canned "welcome" line as if it
+      // were the reply to whatever was actually asked.
+      if (content == null || content.trim().isEmpty) {
+        throw Exception('Bloom AI Service returned no content');
       }
-      return 'Welcome to Bloom! Track your cycle with confidence today.';
+      return content.trim().replaceAll('"', '');
     } else {
       throw Exception('Bloom AI Service Error (${response.statusCode}): ${response.body}');
     }
